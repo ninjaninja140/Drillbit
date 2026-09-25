@@ -1,32 +1,46 @@
 {
-	"name": "@ninjaninja140/node-ts-template",
-	"packageManager": "yarn@4.12.0",
-	"version": "1.0.0",
-	"repository": "https://github.com/ninjaninja140/templates-node-typescript",
+	"name": "drillbit",
+	"packageManager": "yarn@4.18.0",
+	"version": "0.1.0",
+	"description": "Drillbit, the new swiss army-knife of project management.",
+	"keywords": ["package-manager", "migration", "npm", "yarn", "cli"],
+	"license": "Apache-2.0",
+	"repository": "https://github.com/ninjaninja140/Drillbit",
 	"author": {
 		"name": "ninjaninja140",
 		"url": "https://github.com/ninjaninja140"
 	},
-	"main": "dist/Entrypoint.mjs",
+	"type": "module",
+	"main": "dist/Entrypoint.js",
+	"bin": "./dist/Entrypoint.js",
+	"files": ["dist"],
+	"engines": {
+		"node": ">=22"
+	},
 	"scripts": {
-		"start": "node ./dist/Entrypoint.mjs",
-		"build": "tsup",
+		"start": "node ./dist/Entrypoint.js",
+		"build": "tsc",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"test:coverage": "vitest run --coverage",
+		"test:e2e": "vitest run tests/e2e",
+		"typecheck": "tsc -p tsconfig.test.json",
+		"lint": "biome check .",
+		"format": "biome check --write .",
 		"update": "yarn upgrade-interactive"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.3.11",
-		"@bracketed/tsup-configuration": "^1.0.5",
-		"@bracketed/typescript-config": "^4.7.1",
-		"@swc/core": "^1.15.8",
 		"@types/node": "^25.0.3",
-		"esbuild": "^0.27.2",
-		"esbuild-fix-imports-plugin": "^1.0.23",
-		"esbuild-plugin-copy": "^2.1.1",
-		"esbuild-plugin-file-path-extensions": "^2.1.4",
-		"esbuild-plugin-version-injector": "^1.2.1",
-		"tsc-alias": "^1.8.16",
-		"tsconfig-paths": "^4.2.0",
-		"tsup": "^8.5.1",
-		"typescript": "^5.9.3"
+		"@vitest/coverage-v8": "5.0.1",
+		"typescript": "^7.0.2",
+		"vite": "8.3.0",
+		"vitest": "5.0.1"
+	},
+	"dependencies": {
+		"@clack/prompts": "1.8.1",
+		"execa": "10.0.1",
+		"picocolors": "1.1.1",
+		"yaml": "2.9.1"
 	}
 }

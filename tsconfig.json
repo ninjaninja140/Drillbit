@@ -1,16 +1,32 @@
 {
-	"extends": ["@bracketed/typescript-config/tsup-strict"],
 	"compilerOptions": {
-		"incremental": false,
-		"moduleResolution": "Bundler",
-		"module": "ESNext",
-		"paths": {
-			"@/*": ["./src/*"]
-		},
+		"module": "nodenext",
+		"moduleResolution": "nodenext",
+		"target": "esnext",
+		"lib": ["esnext"],
+		"types": ["node"],
 		"rootDir": "./src",
 		"outDir": "./dist",
-		"jsx": "react-jsx"
+		"sourceMap": true,
+		"newLine": "crlf",
+		"noUncheckedIndexedAccess": true,
+		"exactOptionalPropertyTypes": true,
+		"noImplicitReturns": true,
+		"noImplicitOverride": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"noFallthroughCasesInSwitch": true,
+		"allowUnreachableCode": false,
+		"allowUnusedLabels": false,
+		"strict": true,
+		"jsx": "react-jsx",
+		"verbatimModuleSyntax": true,
+		"isolatedModules": true,
+		"rewriteRelativeImportExtensions": true,
+		"noUncheckedSideEffectImports": true,
+		"moduleDetection": "force",
+		"skipLibCheck": true
 	},
 	"include": ["src"],
-	"exclude": ["dist", "node_modules", "tsup.config.ts"]
+	"exclude": ["dist", "node_modules"]
 }

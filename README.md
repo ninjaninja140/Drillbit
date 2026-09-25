@@ -1,112 +1,187 @@
-# ninjaninja140's Templates - Node.js /w TypeScript
+# Drillbit
 
-Hello and welcome!
-This is a template repository made for convenience to others by ninjaninja140!
+A package manager *manager*. Point Drillbit at a project and it works out which package manager — and which version of it — the project actually uses, then converts it to another one without breaking the dependency tree.
 
-As the title suggests, this is a Node.js based TypeScript Template.
-If you would like to use the JavaScript version of this template, please go to <https://github.com/ninjaninja140/nodejs-template-js>
-This Template has been pre-configured with docker so you can go straight into your Dockerized project with little configuration required!
+Drillbit exists because package manager versions are not interchangeable. A `yarn.lock` written by Yarn 1.22.12 is a different format from the one Yarn 4 writes, `package-lock.json` cannot be reused by Yarn at all, and swapping the lockfile by hand is how dependency trees get corrupted. Drillbit detects the difference and migrates instead of guessing.
 
-## Getting a copy
+## Status
 
-To begin on your own project, you can either fork this repository and begin your project or you could select this repository at `ninjaninja140/nodejs-template-ts` as a template when creating a new repository or you could just clone it and work locally!
+v0.1 handles the two conversions it was built for:
 
-## Setup & Install
+| From                                       | To                                             |
+| ------------------------------------------ | ---------------------------------------------- |
+| npm (`package-lock.json`, any lockfileVersion) | Yarn 2+ (latest, vendored into `.yarn/releases`) |
+| Yarn 1.x classic (`yarn.lock` v1 + `.yarnrc`)  | Yarn 2+ (latest)                               |
 
-### If you aren't using Docker
+Yarn 2+ projects are supported too: pointing Drillbit at one re-pins it to another Yarn release.
 
-Just remove the `docker` folder and the `entrypoint.sh` file and you should be good to go!
-You may also need to remove the `validate.yml` and `ci.yml` files as they use Docker to check if the project can be compiled with Docker.
+Not yet supported (Drillbit says so and stops rather than guessing): pnpm and Bun as sources, and converting away from Yarn.
 
-### For using NPM instead of Yarn
+## Requirements
 
-If you are using npm, please remove the `yarn.lock` and `.yarnrc.yml` files along with the `.yarn` directory.
-Please also remove the `COPY --chown=node:node .yarnrc.yml .` line in the `Dockerfile` if you are using Docker.
-You also need to change all the command scripts in `package.json` that start with `yarn` to `npx`.
+- Node.js 22 or newer.
+- Network access to `registry.npmjs.org` (to look up the latest Yarn and, on every run, the latest Drillbit), `repo.yarnpkg.com` (to download the release) and, when npm has no Drillbit release, `api.github.com` for the releases of `ninjaninja140/Drillbit`. Drillbit falls back to a known-good Yarn version if the registry cannot be reached, and simply stays quiet when a release cannot be found.
 
-### Install using Yarn
+## Install
 
-This project is pre-configured with yarn so if you haven't removed yarn's dependencies if you are using NPM in the `For using NPM instead of Yarn` section above, you should be fine to run the command below. If you encounter any errors while running it that are not your own computer's errors, please feel free to open an issue so I can fix it.
-Running `yarn install` should install all the necessary development dependencies, after its finished you should be good to go!
+Drillbit is not published to npm yet, so build it from source:
 
-### Install using NPM
-
-If you wish to use NPM in this project, please follow the instructions in the `For using NPM instead of Yarn` section above before running any commands.
-Running `npm install` after following the section referenced above, you should be ready to start coding!
+```sh
+git clone https://github.com/ninjaninja140/Drillbit.git
+cd Drillbit
+yarn install
+yarn build
+node ./dist/Entrypoint.js --help
+```
 
 ## Usage
 
-### Testing
+```sh
+drillbit <command> [directory] [options]
+```
 
-If you have a different file structure than the one that is currently set up where `index.ts` is your main file please make sure to set up the `test` script in the `package.json` file to point to the file you wish to run.
+Drillbit is command based, which leaves room for more than one conversion later:
 
-To test your application run either of the two commands:
+| Command               | What it does                                               |
+| --------------------- | ---------------------------------------------------------- |
+| `migrate [directory]` | Convert the project to Yarn. This is the v0.1 feature.      |
+| `help [command]`      | Show the overall help, or the help of a single command.     |
 
-- NPM: `npm run test`
-- Yarn: `yarn run test` or `yarn test`
+`drillbit help migrate` and `drillbit migrate --help` show the same thing. A bare `drillbit` prints
+the usage and exits with code 2.
 
-Use CTRL or COMMAND + C to exit.
+`migrate` is the interesting one. Run it inside the project you want to convert, or pass a directory. Everything except the final `yarn install` is a question away, and nothing is written until you confirm the plan.
 
-### Compiling
+### Options
 
-A pre-configured `tsconfig.json` and `tsup.config.ts` file has been made for your convenience, any edits you wish to make, do them now before running the next command.
-To compile your project into JavaScript, run our pre-configured `yarn build` command.
+| Option                | Description                                                                 |
+| --------------------- | --------------------------------------------------------------------------- |
+| `-C, --cwd <dir>`     | Project directory (default: the current directory).                          |
+| `-y, --yes`           | Accept the suggested answers and skip confirmations. Needed in CI; see below. |
+| `--dry-run`           | Report what would change without touching the project.                       |
+| `--linker <name>`     | Yarn linker to use: `node-modules` (default) or `pnp`.                       |
+| `--no-install`        | Skip the final `yarn install`.                                               |
+| `--yarn-version <v>`  | Yarn version to switch to (default: the latest release).                     |
+| `--force`             | Run even when the project already uses the target setup.                     |
+| `--dev`               | Skip the production-only checks, such as the update check.                   |
+| `-h, --help`          | Show help.                                                                   |
+| `-v, --version`       | Show the Drillbit version.                                                   |
 
-**NOTE** When you are building this project with Docker, it is compiled in the build stages, so don't worry about compiling before building.
+### Examples
 
-### Running
+```sh
+# Look first: show the detection and the plan, write nothing
+drillbit migrate --dry-run
 
-If you haven't done so, please compile your project now.
-To run your application, run either of the two commands:
+# Convert npm to the latest Yarn, no questions asked, from CI
+drillbit migrate -y
 
-- NPM: `npm run start`
-- Yarn: `yarn run start` or `yarn start`
+# Upgrade Yarn 1.22.12 to Yarn 4.10.3 with Plug'n'Play, but install later
+drillbit migrate --yarn-version 4.10.3 --linker pnp --no-install
 
-Use CTRL or COMMAND + C to exit.
+# Hack on Drillbit: leave the production-only checks alone
+drillbit migrate --dry-run --dev
+```
 
-## Linting & Validating
+### Staying up to date
 
-This project has been pre-configured to use `biome`.
-You can change my current Biome config in the `biome.json` file, or you can delete it to use another linter.
+Every `migrate` run asks the npm registry, and the GitHub releases of `ninjaninja140/Drillbit` as a
+fallback, whether a newer Drillbit exists. When one does, it says so before doing anything else:
 
-## Docker
+```
+Drillbit is out of date! We recommend updating drillbit to its latest release from whichever method you installed drillbit! (0.1.0 -> 0.2.0)
+```
 
-This project was set up with Docker for convenience to others and myself.
-If you do not wish to use Docker in this project, ignore this and go to the `If you aren't using Docker` sub-section of the `Setup & Install` section.
-If you are using Docker in this project, I have pre-prepared a `Dockerfile`, change this to your best suit if necessary.
-All docker-related content for this project has been set up in the `docker` folder, which includes development compose files, production compose files and a Dockerfile for building your project.
+The lookup is advisory and has a five second budget: an unreachable registry, a missing release or a
+slow network never fails the run it was started for. Put `--dev` at the end of the command, or set
+`DRILLBIT_NO_UPDATE_CHECK=1`, to skip the check altogether — which is what the test suite does.
 
-### Building
+> Drillbit asks questions before it changes anything, which needs an interactive terminal. In scripts and CI, pass `--yes` (plus `--yarn-version` if you do not want the latest release looked up).
 
-If you don't already, install Docker Engine or Docker Desktop onto the device you are using to test locally or deploy on.
-Running this project in docker is now a bit different as of 08/01/2025, due to the new `docker` folder, we now have new commands:
+## How detection works
 
-**Production commands:**
+Drillbit reads the project and ranks what it finds:
 
-- Building the full project: `docker compose -f docker/prod/main.compose.yaml build`
-- Running the full project: `docker compose -f docker/prod/main.compose.yaml up -d`
-- Building only services: `docker compose -f docker/prod/services.compose.yaml build`
-- Running only services: `docker compose -f docker/prod/services.compose.yaml up -d`
+1. `packageManager` in `package.json` — high confidence, and it can carry an exact version.
+2. `.yarnrc.yml` — the `yarnPath` release (high confidence) or the file alone (`Yarn 2+`, medium).
+3. Vendored releases in `.yarn/releases`, then `yarn.lock` — the lockfile header says `Yarn 1` or `Yarn 2+`; a Yarn 1 `.yarnrc` is a low-confidence classic signal.
+4. Other lockfiles: `package-lock.json` (with its `lockfileVersion`, which maps to the npm major that wrote it), `pnpm-lock.yaml`, `bun.lock`.
 
-**Development commands:**
+When several managers left traces, the declared `packageManager` wins. If nothing declares one, Drillbit shows you what it found and picks the manager whose lockfile changed most recently, with a warning. Pass `--dry-run` first if you want to check.
 
-- Building the full project: `docker compose -f docker/dev/main.compose.yaml build`
-- Running the full project: `docker compose -f docker/dev/main.compose.yaml up -d`
-- Building only services: `docker compose -f docker/dev/services.compose.yaml build`
-- Running only services: `docker compose -f docker/dev/services.compose.yaml up -d` (Command automatically runs on boot with VSC for development environments)
+The detected version matters: a source of Yarn `1.x` gets the classic-to-Berry lockfile migration, while a Yarn 2+ source keeps its lockfile.
 
-If this fails for whatever reason, please try troubleshoot it yourself before opening an issue.
+## What a migration changes
 
-### Running
+Every conversion is a plan, and every plan is shown before it runs:
 
-If you haven't already, please build your project before running. Refer to the `Building` sub-section that should be just above on how to build your project.
+- Vendors the target Yarn release into `.yarn/releases/yarn-<version>.cjs` (nothing global is installed, and the project stays reproducible).
+- Removes install artifacts that cannot be reused: `node_modules`, `.pnp.cjs`, `.yarn/install-state.gz`, `.yarn/build-state.yml`, `.yarn/unplugged`.
+- Removes npm lockfiles when converting from npm; superseded vendored Yarn releases are pruned.
+- Maps `.npmrc` / `.yarnrc` settings onto `.yarnrc.yml` (`registry` → `npmRegistryServer`, `ignore-scripts true` → `enableScripts false`, `network-timeout` → `httpTimeout`, and so on). Anything without a Yarn 4 equivalent is reported instead of silently dropped.
+- Writes `.yarnrc.yml` with `nodeLinker` and `yarnPath`, keeping any settings and comments already in the file.
+- Pins `"packageManager": "yarn@<version>"` in `package.json`, keeping the file's indentation, line endings and key order.
+- Adds the Yarn block to `.gitignore` (`.yarn/*` with the useful folders un-ignored, plus `node_modules/` or `.pnp.*`).
+- Runs the vendored `yarn install` so the new lockfile is generated by the right Yarn version.
 
-#### To run as a Docker Stack
+Secrets are never copied: registry credentials found in `.npmrc` are reported so you can move them to `npmRegistries.<registry>.npmAuthToken` yourself.
 
-Refer to the section above regarding the new deployment commands.
+## Exit codes
 
-## Thank you
+| Code | Meaning                                                             |
+| ---- | ------------------------------------------------------------------- |
+| `0`  | Converted, or already on the target setup, or the user said no.      |
+| `1`  | Nothing to convert, the source is unsupported, or a step failed.     |
+| `2`  | Bad usage (no command, unknown command or option, no `package.json`, no interactive terminal). |
+| `130` | Cancelled at a prompt.                                             |
 
-Thank you for using my templates!
-If you like to use them frequently, why not consider sponsoring or tipping me!
-My GitHub Sponsors profile is at <https://github.com/sponsors/ninjaninja140>!
+A failed step leaves the project half-migrated. The error says so; fix the reported problem and run Drillbit again — it is safe to re-run, because detection runs from scratch each time.
+
+## Development
+
+```sh
+yarn install     # dependencies (Yarn 4, vendored in .yarn/releases)
+yarn typecheck   # tsc --noEmit over src and tests
+yarn test        # vitest run
+yarn test:watch  # vitest (watch mode)
+yarn test:coverage
+yarn lint        # biome check .
+yarn format      # biome check --write .
+yarn build       # tsc → dist/
+yarn start       # node ./dist/Entrypoint.js
+```
+
+Layout:
+
+- `src/Entrypoint.ts` — the CLI entry point (`bin`), a shebang around `run()`.
+- `src/cli/` — argument parsing and command dispatch (`args.ts`), terminal presentation (`@clack/prompts`, `picocolors`) in `ui.ts`, orchestration and exit codes in `run.ts`.
+- `src/core/` — the engine: `project.ts` (reads the project), `detect.ts` (detection heuristics), `migrations.ts` (plans and steps), `yarnrc.ts` (`.yarnrc`/`.npmrc` mapping), `yarn.ts` (release URLs and version resolution), `update.ts` (the Drillbit release lookup), `gitignore.ts`, `fsx.ts`, `exec.ts`, `report.ts`.
+- `tests/unit/`, `tests/integration/`, `tests/e2e/` — every suite lives under `tests/`; `src/` ships code only.
+
+## Testing
+
+Vitest, in three layers. Nothing in the default run touches the network or the real Yarn release, so `yarn test` is fast and offline.
+
+| Layer       | Files                  | What it covers                                                         |
+| ----------- | ---------------------- | ---------------------------------------------------------------------- |
+| Unit        | `tests/unit/`          | Detection heuristics, `.yarnrc`/`.npmrc` mapping, version parsing, the update lookup, prompts. |
+| Integration | `tests/integration/`   | The real engine and the real `run()` against a temp workspace on disk.  |
+| End-to-end  | `tests/e2e/`           | The CLI spawned as a child process, plus opt-in live-registry runs.     |
+
+How the suite stays hermetic:
+
+- **Temp workspaces.** `tests/helpers/workspace.ts` creates a real directory under the OS temp dir and removes it afterwards. Files are written for real; assertions read them back.
+- **Stub Yarn.** `tests/helpers/stub-yarn.ts` pre-vendors a fake `.yarn/releases/yarn-<version>.cjs`. A vendored release is itself a detection signal, so fixtures that must look like plain npm projects also declare `"packageManager": "npm@…"`. The stub answers `--version` from its own filename, records every call in `.drillbit-stub.jsonl` and can be told to fail via `DRILLBIT_STUB_FAIL=1`.
+- **No release lookup by default.** `vitest.config.ts` sets `DRILLBIT_NO_UPDATE_CHECK=1`, and the few tests that cover the check delete it and stub `fetch` with `vi.stubGlobal`, so the default run never leaves the machine.
+- **Mocked prompts.** `src/cli/ui.ts` is the only module that imports `@clack/prompts`; tests mock it with `vi.mock('@clack/prompts', …)` and queue answers (`tests/helpers/clack-mock.ts`). `pretendTty()` stubs `process.stdout.isTTY`, which is unset inside Vitest workers.
+
+The three live tests hit the real registry and download the real Yarn release. They are opt-in and slow (about 15s):
+
+```sh
+$env:DRILLBIT_E2E_NETWORK='1'   # PowerShell
+yarn test:e2e
+```
+
+## License
+
+Apache-2.0 — see [LICENSE](./LICENSE).
